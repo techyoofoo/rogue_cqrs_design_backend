@@ -19,10 +19,10 @@ const {
  * mongodb connection
  */
 const mongoHost = MONGODB_HOST || "localhost:27017";//'127.0.0.1';
-const mongoUrl = MONGODB_URL || `mongodb://${mongoHost}/messages`;
+const mongoUrl = MONGODB_URL || `mongodb://${mongoHost}/rogue_app`;
 //const options = { useMongoClient: true };
 const mongoose = require('mongoose');
-const config = { useNewUrlParser: true,useUnifiedTopology: true }
+const config = { useNewUrlParser: true, useUnifiedTopology: true }
 mongoose.connect(mongoUrl, config);
 
 /**
@@ -31,7 +31,7 @@ mongoose.connect(mongoUrl, config);
 
 const rabbitHost = RABBITMQ_HOST || '127.0.0.1';
 const rabbitPort = RABBITMQ_PORT || '15672';
-const rabbitUrl = RABBITMQ_URL || `amqp://${rabbitHost}:${rabbitPort}`;
+const rabbitUrl = RABBITMQ_URL || `amqp://localhost`;
 const bus = require('servicebus').bus({ url: rabbitUrl });
 
 const init = async () => {
@@ -43,35 +43,33 @@ const init = async () => {
   await server.start();
   console.log('Read-focus sServer running on %s', server.info.uri);
 
-  const messageSchema = new mongoose.Schema({
-    id: String,
-    message: {
-      content: String,
-    },
-  },
-    {
-      strict: false,
+  var schemaModel = new mongoose.Schema({}, { strict: false });
+  server.route({
+    method: 'GET',
+    path: '/api/v1/{event}',
+    handler: function (request, h) {
+      return new Promise(function (resolve, reject) {
+        try {
+          bus.listen(request.params.event, payload => {
+            const model = payload.payload.UB.header.Event.split('.')[0];
+            const Schema = mongoose.model(model, schemaModel);
+            mongoose.Promise = global.Promise;
+            const schema = new Schema(Object.assign({}, payload.payload.UB.data_body));
+            const promise = schema.save();
+            promise.then(document => {
+              bus.send(`public_` + request.params.event, { document });
+              console.info('store: saved document');
+              console.info(document);
+              resolve(h.response({ Message: document }));
+            });
+          });
+        }
+        catch (err) {
+          reject(err);
+        }
+      })
     }
-  );
-
-  const Message = mongoose.model('Message', messageSchema);
-
-  const events = {
-    create: 'messages.create',
-    create_public_bus: 'messages.public_bus',
-  };
-
-  mongoose.Promise = global.Promise;
-  bus.listen(events.create, payload => {
-    const message = new Message(Object.assign({}, payload));
-    const promise = message.save();
-    promise.then(document => {
-      bus.send(events.create_public_bus, { document });
-      console.info('store: saved document');
-      console.info(document);
-    });
   });
-
 };
 
 process.on('unhandledRejection', (err) => {

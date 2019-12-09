@@ -1,6 +1,7 @@
 'use strict';
 const uuid = require('uuid');
 const Hapi = require('@hapi/hapi');
+const axios = require('axios');
 
 const {
     RABBITMQ_HOST,
@@ -12,12 +13,10 @@ const {
 /**
  * rabbitmq
  */
-const events = {
-    create: 'messages.create',
-};
+
 const rabbitHost = RABBITMQ_HOST || '127.0.0.1';
 const rabbitPort = RABBITMQ_PORT || '15672';
-const rabbitUrl = RABBITMQ_URL || `amqp://${rabbitHost}:${rabbitPort}`;
+const rabbitUrl = RABBITMQ_URL || `amqp://localhost`;
 const bus = require('servicebus').bus({ url: rabbitUrl });
 //console.log("rabbitUrl", rabbitUrl);
 
@@ -33,15 +32,18 @@ const init = async () => {
 
     server.route({
         method: 'POST',
-        path: '/api/v1/messages',
+        path: '/api/v1/genericlist',
         handler: function (request, h) {
-
             const payload = request.payload;
             const id = uuid.v4();
-            const message = payload;
+            const event = payload.UB.header.Event;
+            axios.get("http://localhost:3001/api/v1/" + event)
+            .catch(error => {
+                throw error
+            });
             return new Promise(function (resolve, reject) {
                 try {
-                    bus.send(events.create, { id, message });
+                    bus.send(event, { id, payload });
                     console.log("Event id -", id);
                     resolve(h.response({ Message: `Event id - ${id}` }));
                 }
