@@ -41,7 +41,7 @@ const init = async () => {
   });
 
   await server.start();
-  console.log('Read-focus sServer running on %s', server.info.uri);
+  console.log('Server running on %s', server.info.uri);
 
   var schemaModel = new mongoose.Schema({}, { strict: false });
   server.route({
@@ -57,7 +57,7 @@ const init = async () => {
             const schema = new Schema(Object.assign({}, payload.payload.UB.data_body));
             const promise = schema.save();
             promise.then(document => {
-              bus.send(`public_` + request.params.event, { document });
+              bus.send(payload.payload.UB.header.PublicEvent, { document });
               console.info('store: saved document');
               console.info(document);
               resolve(h.response({ Message: document }));
