@@ -45,7 +45,7 @@ const init = async () => {
                 try {
                     bus.send(event, { id, payload });
                     console.log("Event id -", id);
-                    resolve(h.response({ Message: `Event id - ${id}` }));
+                    return resolve(h.response({ Message: `Event id - ${id}` }));
                 }
                 catch (err) {
                     reject(err);
