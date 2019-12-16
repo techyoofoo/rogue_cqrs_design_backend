@@ -36,12 +36,19 @@ const bus = require('servicebus').bus({ url: rabbitUrl });
 
 const init = async () => {
   const server = Hapi.server({
-    port: 3001,
-    host: 'localhost'
+    port: process.env.PORT || 3002,
+    host: process.env.IP || "localhost",
+    routes: {
+      cors: {
+        origin: ["*"],
+        headers: ["Accept", "Content-Type"],
+        additionalHeaders: ["X-Requested-With"]
+      }
+    }
   });
 
   await server.start();
-  console.log('Read-focus sServer running on %s', server.info.uri);
+  console.log('Server running on %s', server.info.uri);
 
 
 
@@ -52,6 +59,7 @@ const init = async () => {
     handler: function (request, h) {
       return new Promise(function (resolve, reject) {
         try {
+          //TODO : one time subscription
           bus.listen(request.params.event, payload => {
             const model = payload.payload.UB.header.Event.split('.')[0];
             const Schema = mongoose.model(model, schemaModel);
@@ -60,10 +68,10 @@ const init = async () => {
             const promise = schema.save();
             promise.then(document => {
               let data = {
-                name: payload.payload.UB.header.PublicEvent,
+                name: payload.payload.UB.header.ReportEvent,
                 collection: document
               }
-              bus.publish(`public_bus`, { data });
+              bus.publish(payload.payload.UB.header.PublicEvent, { data });
               console.info('store: saved document');
               console.info(document);
               resolve(h.response({ Message: document }));

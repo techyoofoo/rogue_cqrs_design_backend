@@ -21,10 +21,16 @@ const bus = require('servicebus').bus({ url: rabbitUrl });
 //console.log("rabbitUrl", rabbitUrl);
 
 const init = async () => {
-
     const server = Hapi.server({
-        port: 3000,
-        host: 'localhost'
+        port: process.env.PORT || 3001,
+        host: process.env.IP || "localhost",
+        routes: {
+          cors: {
+            origin: ["*"],
+            headers: ["Accept", "Content-Type"],
+            additionalHeaders: ["X-Requested-With"]
+          }
+        }
     });
 
     await server.start();
@@ -37,7 +43,7 @@ const init = async () => {
             const payload = request.payload;
             const id = uuid.v4();
             const event = payload.UB.header.Event;
-            axios.get("http://localhost:3001/api/v1/" + event)
+            axios.get("http://localhost:3002/api/v1/" + event)
             .catch(error => {
                 throw error
             });

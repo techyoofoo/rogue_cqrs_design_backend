@@ -6,8 +6,15 @@ var eventHandler = require('./eventhandler').eventHandler
 
 const init = async () => {
   const server = Hapi.server({
-    port: 3003,
-    host: 'localhost'
+    port: process.env.PORT || 3003,
+    host: process.env.IP || "localhost",
+    routes: {
+      cors: {
+        origin: ["*"],
+        headers: ["Accept", "Content-Type"],
+        additionalHeaders: ["X-Requested-With"]
+      }
+    }
   });
 
   await server.start();
@@ -23,9 +30,20 @@ const init = async () => {
 
   server.route({
     method: "GET",
-    path: "/",
-    handler: function (request, h) {
-      return h.response("Welcome to windows service application").code(200)
+    path: "/report/{name}",
+    handler: function (request, reply) {
+      const promise = new Promise(async (resolve, reject) => {
+        try {
+          bus.listen(request.params.name, { durable: true}, function (event) {
+            return resolve(reply.response(event));
+          });
+          //return resolve(reply.response(data));
+        }
+        catch (error) {
+          throw error
+        }
+      });
+      return promise;
     }
   });
 };
