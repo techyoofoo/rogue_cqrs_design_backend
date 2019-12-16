@@ -68,7 +68,7 @@ const init = async () => {
             const promise = schema.save();
             promise.then(document => {
               let data = {
-                name: payload.payload.UB.header.ReportEvent,
+                name: payload.payload.UB.header.ReportFormatter,
                 collection: document
               }
               bus.publish(payload.payload.UB.header.PublicEvent, { data });
