@@ -25,11 +25,11 @@ const init = async () => {
         port: process.env.PORT || 3001,
         host: process.env.IP || "localhost",
         routes: {
-          cors: {
-            origin: ["*"],
-            headers: ["Accept", "Content-Type"],
-            additionalHeaders: ["X-Requested-With"]
-          }
+            cors: {
+                origin: ["*"],
+                headers: ["Accept", "Content-Type"],
+                additionalHeaders: ["X-Requested-With"]
+            }
         }
     });
 
@@ -44,14 +44,14 @@ const init = async () => {
             const id = uuid.v4();
             const event = payload.UB.header.Event;
             axios.get("http://localhost:3002/api/v1/" + event)
-            .catch(error => {
-                throw error
-            });
+                .catch(error => {
+                    throw error
+                });
             return new Promise(function (resolve, reject) {
                 try {
                     bus.send(event, { id, payload });
                     console.log("Event id -", id);
-                    return resolve(h.response({ Message: `Event id - ${id}` }));
+                    return resolve(h.response({ EventId: id }));
                 }
                 catch (err) {
                     reject(err);

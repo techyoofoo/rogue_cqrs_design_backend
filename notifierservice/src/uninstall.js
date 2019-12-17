@@ -1,8 +1,8 @@
 var Service = require('node-windows').Service;
 // Create a new service object
 var svc = new Service({
-     name: 'ReportService',
-     script: require('path').join(__dirname, 'eventsubscriber.js')
+     name: 'NotifierService',
+     script: require('path').join(__dirname, 'notifier.js')
 });
 
 svc.on('uninstall', function () {

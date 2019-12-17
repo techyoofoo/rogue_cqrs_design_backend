@@ -68,6 +68,7 @@ const init = async () => {
             const promise = schema.save();
             promise.then(document => {
               let data = {
+                eventId: payload.id,
                 name: payload.payload.UB.header.ReportFormatter,
                 collection: document
               }
