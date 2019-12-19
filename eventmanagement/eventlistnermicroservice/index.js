@@ -1,5 +1,15 @@
 'use strict';
 const Hapi = require('@hapi/hapi');
+var amqp = require('amqplib/callback_api');
+
+var ch = require('../rabbitmqservice/service').channel
+
+var rabbitConn = require('../rabbitmqservice/service');
+let connection = null;
+
+rabbitConn(function (conn) {
+  connection = conn;
+});
 
 /**
  * environment variables
@@ -55,29 +65,79 @@ const init = async () => {
   var schemaModel = new mongoose.Schema({}, { strict: false });
   server.route({
     method: 'GET',
-    path: '/api/v1/{event}',
+    path: '/api/v1/{event}/{key}',
     handler: function (request, h) {
-      return new Promise(function (resolve, reject) {
+      return new Promise(async function (resolve, reject) {
         try {
-          //TODO : one time subscription
-          bus.listen(request.params.event, payload => {
-            const model = payload.payload.UB.header.Event.split('.')[0];
-            const Schema = mongoose.model(model, schemaModel);
-            mongoose.Promise = global.Promise;
-            const schema = new Schema(Object.assign({}, payload.payload.UB.data_body));
-            const promise = schema.save();
-            promise.then(document => {
-              let data = {
-                eventId: payload.id,
-                name: payload.payload.UB.header.ReportFormatter,
-                collection: document
-              }
-              bus.publish(payload.payload.UB.header.PublicEvent, { data });
-              console.info('store: saved document');
-              console.info(document);
-              resolve(h.response({ Message: document }));
-            });
+          var channel = await ch(connection)
+          var exchange = request.params.event;
+
+          channel.assertExchange(exchange, 'topic', {
+            durable: false
           });
+
+          channel.assertQueue('', {
+            exclusive: true
+          }, function (error2, q) {
+            if (error2) {
+              throw error2;
+            }
+
+            let key = request.params.key;
+            channel.bindQueue(q.queue, exchange, key);
+
+            channel.consume(q.queue, function (msg) {
+              let payload = msg.content.toString();
+              console.log(payload)
+              let data = JSON.parse(payload)
+              const model = data.UB.header.Event.split('.')[0];
+              const Schema = mongoose.model(model, schemaModel);
+              mongoose.Promise = global.Promise;
+              const schema = new Schema(Object.assign({}, data.UB.data_body));
+              const promise = schema.save();
+              promise.then(document => {
+                let publishdata = {
+                  eventId: payload.id,
+                  name: data.UB.header.ReportFormatter,
+                  collection: document
+                }
+
+                channel.assertExchange(data.UB.header.PublicEvent, 'topic', {
+                  durable: false
+                });
+                let publicRoutingKey = `user`;
+                channel.publish(exchange, publicRoutingKey, Buffer.from(JSON.stringify(publishdata)));
+                //bus.publish(data.UB.header.PublicEvent, { publishdata });
+                console.info('store: saved document');
+                console.info(document);
+                resolve(h.response({ Message: document }));
+              });
+            }, {
+              noAck: true
+            });
+            return resolve(h.response("OK"));
+          });
+
+
+          //TODO : one time subscription
+          // bus.listen(request.params.event, payload => {
+          //   const model = payload.payload.UB.header.Event.split('.')[0];
+          //   const Schema = mongoose.model(model, schemaModel);
+          //   mongoose.Promise = global.Promise;
+          //   const schema = new Schema(Object.assign({}, payload.payload.UB.data_body));
+          //   const promise = schema.save();
+          //   promise.then(document => {
+          //     let data = {
+          //       eventId: payload.id,
+          //       name: payload.payload.UB.header.ReportFormatter,
+          //       collection: document
+          //     }
+          //     bus.publish(payload.payload.UB.header.PublicEvent, { data });
+          //     console.info('store: saved document');
+          //     console.info(document);
+          //     resolve(h.response({ Message: document }));
+          //   });
+          // });
         }
         catch (err) {
           reject(err);
@@ -88,7 +148,6 @@ const init = async () => {
 };
 
 process.on('unhandledRejection', (err) => {
-
   console.log(err);
   process.exit(1);
 });

@@ -2,6 +2,16 @@
 const uuid = require('uuid');
 const Hapi = require('@hapi/hapi');
 const axios = require('axios');
+var amqp = require('amqplib/callback_api');
+
+var ch = require('../rabbitmqservice/service').channel
+
+var rabbitConn = require('../rabbitmqservice/service');
+let connection = null;
+
+rabbitConn(function (conn) {
+    connection = conn;
+});
 
 const {
     RABBITMQ_HOST,
@@ -43,15 +53,30 @@ const init = async () => {
             const payload = request.payload;
             const id = uuid.v4();
             const event = payload.UB.header.Event;
-            axios.get("http://localhost:3002/api/v1/" + event)
-                .catch(error => {
-                    throw error
-                });
-            return new Promise(function (resolve, reject) {
+            const key = payload.UB.header.Key ;
+
+            return new Promise(async function (resolve, reject) {
                 try {
-                    bus.send(event, { id, payload });
-                    console.log("Event id -", id);
-                    return resolve(h.response({ EventId: id }));
+                    axios.get(`http://localhost:3002/api/v1/${event}/${key}`) //
+                        .then(async (response) => {
+                            var channel = await ch(connection)
+                            var exchange = event;
+                            var msg = JSON.stringify(payload);
+
+                            channel.assertExchange(exchange, 'topic', {
+                                durable: false
+                            });
+                            channel.publish(exchange, key, Buffer.from(msg));
+                            console.log("Event id -", id);
+                            return resolve(h.response({ EventId: id }));
+                        })
+                        .catch(error => {
+                            throw error
+                        });
+
+                    //bus.send(event, { id, payload });//send to exchange
+                    // console.log("Event id -", id);
+                    // return resolve(h.response({ EventId: id }));
                 }
                 catch (err) {
                     reject(err);
