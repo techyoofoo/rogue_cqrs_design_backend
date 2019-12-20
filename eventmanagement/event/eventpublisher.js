@@ -4,9 +4,9 @@ const Hapi = require('@hapi/hapi');
 const axios = require('axios');
 var amqp = require('amqplib/callback_api');
 
-var ch = require('../rabbitmqservice/service').channel
+var ch = require('./rabbitmqservice').channel
 
-var rabbitConn = require('../rabbitmqservice/service');
+var rabbitConn = require('./rabbitmqservice');
 let connection = null;
 
 rabbitConn(function (conn) {

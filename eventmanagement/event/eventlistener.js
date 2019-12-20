@@ -2,9 +2,9 @@
 const Hapi = require('@hapi/hapi');
 var amqp = require('amqplib/callback_api');
 
-var ch = require('../rabbitmqservice/service').channel
+var ch = require('./rabbitmqservice').channel
 
-var rabbitConn = require('../rabbitmqservice/service');
+var rabbitConn = require('./rabbitmqservice');
 let connection = null;
 
 rabbitConn(function (conn) {
@@ -58,7 +58,7 @@ const init = async () => {
   });
 
   await server.start();
-  console.log('Server running on %s', server.info.uri);
+  console.log('Internal bus listen server running on %s', server.info.uri);
 
 
 
